@@ -1,0 +1,88 @@
+---
+title: "Prediction-Assignment-Writeup"
+author: "Xiaoqin Jin"
+date: "2018Äê8ÔÂ10ÈÕ"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+
+1.	## Libraries
+
+library("caret")
+library("rpart")
+library("tree")
+library("randomForest")
+
+2.	## Load Data
+
+training<- read.csv("E://pml-training.csv",na.strings=c("NA","","#DIV/0!"))
+ dim(training)
+testing<- read.csv("E://pml-testing.csv",na.strings=c("NA","","#DIV/0!"))
+ dim(testing)
+
+3.	## Tidy the Data
+
+## Remove variables which have an excess number of NA values.
+
+nacounts <- colSums(is.na(training))
+table(nacounts)
+training1<- training[nacounts == 0]
+dim(training1)
+extraneous<-c('X', 'user_name', 'raw_timestamp_part_1', 'raw_timestamp_part_2', 'cvtd_timestamp', 'new_window', 'num_window')
+training1_ext <- training1[, -which(names(training1) %in% extraneous)]
+dim(training1_ext)
+4.	## Explore and Preprocess Data
+## Check low variance variables.
+near_ZV= nearZeroVar(training1_ext[sapply(training1_ext, is.numeric)], saveMetrics = TRUE)
+train_nzv = training1_ext[,near_ZV[, 'nzv']==0]
+dim(train_nzv)
+##¡¡Remove variables with high correlation
+cor_matrix <- cor(na.omit(train_nzv[sapply(train_nzv, is.numeric)]))
+remove_corr<-findCorrelation(cor_matrix, cutoff = .90, verbose = TRUE)
+training_corr<-train_nzv[,-remove_corr]
+dim(training_corr)
+5.	## Cross Validation
+training_dataPart <- createDataPartition(y=training_corr$classe, p=0.7, list=FALSE)
+training1<- training_corr[training_dataPart,]; testing1 <- training_corr[-training_dataPart,]
+dim(training1)
+dim(testing1)
+set.seed(5555555)
+tree_training = tree(classe~.,data=training1)
+tree_prune <- train(classe ~ .,method="rpart",data=training1)
+tree_predict = predict(tree_prune,testing1)
+pred_matrix = with(testing1,table(tree_predict,classe))
+sum(diag(pred_matrix))/sum(as.vector(pred_matrix))
+set.seed(555555)
+training_ranForest = randomForest(classe~.,data=training1,ntree=100, importance=TRUE)
+training_ranForest
+predict(training_ranForest,testing1,type="class")
+pred_matrix = with(testing1,table(tree_predict,classe))
+sum(diag(pred_matrix))/sum(as.vector(pred_matrix))
+6.	## Conclusion
+
+predict <- predict(training_ranForest, test)
+predict 
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
